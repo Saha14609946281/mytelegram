@@ -1,0 +1,12 @@
+{
+    "name": "my/messenger-bot",
+    "description": "Telegram bot with MadelineProto",
+    "require": {
+        "danog/madelineproto": "^8"
+    },
+    "config": {
+        "platform": {
+            "php": "8.2"
+        }
+    }
+}
