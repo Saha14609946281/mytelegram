@@ -1,6 +1,6 @@
 FROM php:8.2-cli-alpine
 
-# Устанавливаем системные зависимости для MadelineProto и PostgreSQL
+# 1. Устанавливаем ВСЕ необходимые системные пакеты
 RUN apk add --no-cache \
     libffi-dev \
     postgresql-dev \
@@ -8,27 +8,34 @@ RUN apk add --no-cache \
     openssl-dev \
     git \
     unzip \
-    zlib-dev
+    zlib-dev \
+    linux-headers \
+    build-base \
+    autoconf
 
-# Устанавливаем расширения PHP: FFI для скорости и pdo_pgsql для базы данных
+# 2. Устанавливаем и ВКЛЮЧАЕМ расширения PHP
 RUN docker-php-ext-install ffi pdo_pgsql pgsql
 
-# Устанавливаем Composer (менеджер зависимостей PHP)
+# 3. Ставим Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Рабочая директория внутри контейнера
 WORKDIR /app
 
-# Копируем файлы проекта
+# 4. Сначала копируем только файлы зависимостей (ускоряет сборку)
+COPY composer.json ./
+# Если есть composer.lock, раскомментируй строку ниже
+# COPY composer.lock ./
+
+# Устанавливаем зависимости, игнорируя системные требования (важно для Alpine)
+RUN composer install --ignore-platform-reqs --no-dev --no-scripts --no-autoloader
+
+# 5. Копируем остальной код
 COPY . .
 
-# Устанавливаем зависимости из composer.json
-RUN composer install --no-dev --optimize-autoloader
+# Финальная донастройка composer
+RUN composer dump-autoload --optimize
 
-# Открываем порт 8080 (требование Koyeb для Health Check)
 EXPOSE 8080
 
-# Команда запуска: 
-# 1. Запускаем встроенный PHP-сервер на фоне, чтобы Koyeb видел, что порт активен
-# 2. Запускаем твой основной скрипт (обычно index.php или bot.php)
-CMD php -S 0.0.0.0:8080 & php index.php
+# 6. Проверка наличия файла перед стартом
+CMD if [ -f index.php ]; then php -S 0.0.0.0:8080 & php index.php; else echo "CRITICAL ERROR: index.php NOT FOUND"; ls -la; exit 1; fi
