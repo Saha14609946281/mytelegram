@@ -1,26 +1,25 @@
 FROM php:8.2-cli
 
-# 1. Устанавливаем системные зависимости
+# Устанавливаем системные пакеты
 RUN apt-get update && apt-get install -y \
-    libffi-dev \
-    libpq-dev \
-    git \
-    unzip \
+    libffi-dev libpq-dev git unzip libpng-dev libjpeg-dev libfreetype6-dev \
     && docker-php-ext-install ffi pdo_pgsql pgsql
 
-# 2. Устанавливаем Composer
+# Ставим Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# 3. Копируем файлы проекта
-COPY . .
+# Копируем только composer.json для быстрой установки
+COPY composer.json ./
 
-# 4. Устанавливаем зависимости
-# Добавляем --no-interaction, чтобы сборка не ждала ответов от тебя
-RUN composer install --no-interaction --ignore-platform-reqs --no-dev
+# Устанавливаем MadelineProto (это может занять пару минут)
+RUN composer install --no-interaction --ignore-platform-reqs
+
+# Копируем остальной код
+COPY . .
 
 EXPOSE 8080
 
-# 5. Запуск
+# Запуск заглушки и основного файла
 CMD php -S 0.0.0.0:8080 & php index.php
