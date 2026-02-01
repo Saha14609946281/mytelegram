@@ -1,5 +1,4 @@
 <?php
-
 require_once 'vendor/autoload.php';
 
 use danog\MadelineProto\API;
@@ -7,14 +6,13 @@ use danog\MadelineProto\Settings;
 use danog\MadelineProto\Settings\AppInfo;
 use danog\MadelineProto\Settings\Database\Postgres;
 
-// 1. Настройки API (твои данные)
 $settings = new Settings();
 $appInfo = new AppInfo();
+// Твои данные из BuildVars.java
 $appInfo->setApiId(26241381); 
 $appInfo->setApiHash('fe1046e04b4a0196b0e5efcbc4d62093');
 $settings->setAppInfo($appInfo);
 
-// 2. Настройка базы данных (Supabase)
 $dbUri = getenv('DATABASE_URL');
 if ($dbUri) {
     $postgres = new Postgres();
@@ -22,33 +20,43 @@ if ($dbUri) {
     $settings->setDb($postgres);
 }
 
-try {
-    $MadelineProto = new API('session.madeline', $settings);
+$MadelineProto = new API('session.madeline', $settings);
 
-    // Веб-интерфейс для проверки и авторизации
-    if (PHP_SAPI !== 'cli') {
-        if ($MadelineProto->getAuthorization() === \danog\MadelineProto\API::NOT_LOGGED_IN) {
-            echo "Сервер запущен. Зайдите в Runtime Logs в Koyeb, чтобы отсканировать QR-код или ввести номер.";
-        } else {
-            echo "Статус: Авторизован и работает!";
+if (PHP_SAPI !== 'cli') {
+    echo '<div style="font-family:sans-serif; text-align:center; margin-top:50px; background:#f4f4f9; padding:20px; border-radius:10px;">';
+    if ($MadelineProto->getAuthorization() === \danog\MadelineProto\API::NOT_LOGGED_IN) {
+        if (!isset($_POST['phone']) && !isset($_POST['code'])) {
+            echo '<h2>Вход в Telegram</h2>
+                  <form method="POST">
+                    <input name="phone" placeholder="+79991234567" style="padding:10px; width:250px;"><br><br>
+                    <button type="submit" style="padding:10px 20px; cursor:pointer;">Отправить код</button>
+                  </form>';
+        } elseif (isset($_POST['phone']) && !isset($_POST['code'])) {
+            $MadelineProto->phoneLogin($_POST['phone']);
+            echo '<h2>Код отправлен на '.$_POST['phone'].'</h2>
+                  <form method="POST">
+                    <input type="hidden" name="sent_to_phone" value="'.$_POST['phone'].'">
+                    <input name="code" placeholder="Код из сообщения" style="padding:10px; width:250px;"><br><br>
+                    <button type="submit" style="padding:10px 20px; cursor:pointer;">Войти</button>
+                  </form>';
+        } elseif (isset($_POST['code'])) {
+            $MadelineProto->completePhoneLogin($_POST['code']);
+            echo '<h2 style="color:green;">✅ Готово! Вы в системе.</h2>
+                  <p>Теперь скопируйте Secret из логов Koyeb и вставьте в APK.</p>';
         }
-        // Не закрываем скрипт, чтобы прокси продолжал работать
+    } else {
+        echo '<h2 style="color:green;">✅ Сервер авторизован!</h2>
+              <p>Загляните в Runtime Logs в панели Koyeb, там ваш ключ для Android.</p>';
     }
-
-    $MadelineProto->start();
-
-    // 3. Запуск MTProto прокси для APK
-    // Порт 8080 должен быть открыт в настройках Koyeb
-    $MadelineProto->proxy->start(['port' => 8080]);
-
-    // Выводим секретные данные в логи Koyeb
-    $proxyData = $MadelineProto->proxy->getLibproxyUri();
-    file_put_contents('php://stderr', "\n\n======= ДАННЫЕ ДЛЯ ТВОЕГО APK =======\n");
-    file_put_contents('php://stderr', $proxyData . "\n");
-    file_put_contents('php://stderr', "=====================================\n\n");
-
-    $MadelineProto->loop();
-
-} catch (\Exception $e) {
-    file_put_contents('php://stderr', "Ошибка: " . $e->getMessage() . "\n");
+    echo '</div>';
 }
+
+$MadelineProto->start();
+$MadelineProto->proxy->start(['port' => 8080]);
+
+$proxyData = $MadelineProto->proxy->getLibproxyUri();
+file_put_contents('php://stderr', "\n\n======= ДАННЫЕ ДЛЯ ТВОЕГО APK =======\n");
+file_put_contents('php://stderr', $proxyData . "\n");
+file_put_contents('php://stderr', "=====================================\n\n");
+
+$MadelineProto->loop();
