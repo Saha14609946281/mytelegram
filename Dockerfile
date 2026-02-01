@@ -19,7 +19,7 @@ RUN composer install --no-interaction --ignore-platform-reqs
 # Копируем остальной код
 COPY . .
 
-EXPOSE 8080
+EXPOSE 8000
 
 # Запуск заглушки и основного файла
-CMD php -S 0.0.0.0:8080 & php index.php
+CMD php -S 0.0.0.0:8000 & php index.php
