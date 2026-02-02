@@ -23,7 +23,7 @@ try {
     $MadelineProto->start();
     
     // Запускаем прокси ТОЛЬКО если порт свободен
-    $MadelineProto->proxy->start(['port' => 8080, 'secret' => '00112233445566778899aabbccddeeff']);
+    $MadelineProto->proxy->start(['port' => 8000, 'secret' => '00112233445566778899aabbccddeeff']);
     
     $MadelineProto->loop();
 } catch (\Exception $e) {
